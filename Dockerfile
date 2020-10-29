@@ -1,18 +1,20 @@
-FROM php:7.4-fpm-alpine
+FROM jsdecena/php72-fpm
 
-RUN apk add --no-cache nginx supervisor wget
+ENV NODE_VERSION=12.6.0
+RUN apt update && apt install -y curl
 
-RUN mkdir -p /run/nginx
+RUN curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.34.0/install.sh | bash
+ENV NVM_DIR=/root/.nvm
 
-COPY docker/nginx.conf /etc/nginx/nginx.conf
+RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
+RUN . "$NVM_DIR/nvm.sh" && nvm use v${NODE_VERSION}
+RUN . "$NVM_DIR/nvm.sh" && nvm alias default v${NODE_VERSION}
+ENV PATH="/root/.nvm/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
-RUN mkdir -p /app
-COPY . /app
+RUN node --version
+RUN npm --version
 
-RUN sh -c "wget http://getcomposer.org/composer.phar && chmod a+x composer.phar && mv composer.phar /usr/local/bin/composer"
-RUN cd /app && \
-    /usr/local/bin/composer install --no-dev
+COPY project ./
 
-RUN chown -R www-data: /app
-
-CMD sh /app/docker/startup.sh
+RUN npm install && npm audit fix
+RUN npm run production
